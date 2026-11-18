@@ -8,6 +8,3 @@ struct ContentView: View {
     }
 }
 
-// func name(parameters) -> Type {
-    
-// }
