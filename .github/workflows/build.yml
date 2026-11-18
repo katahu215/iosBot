@@ -14,4 +14,4 @@ jobs:
 
       - name: Build Swift Package
         run: |
-          swift build -sdk iphonesimulator
+          swift build --sdk iphonesimulator
