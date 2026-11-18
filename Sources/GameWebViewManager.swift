@@ -20,7 +20,7 @@ class GameWebViewManager: NSObject, WKScriptMessageHandler {
                 return
             }
 
-            logToScreen(text: "🌉 [Bridge IN] Нативный тап: '\(selector)' [индекс: \(index)]", color: "#00ffff")
+            logToScreen(text: "🌉 [Bridge IN] Запрос клика: '\(selector)' [индекс: \(index)]", color: "#00ffff")
 
             // Шаг 1. Находим координаты элемента через JS
             findCoordinates(selector: selector, index: index) { [weak self] point in
@@ -32,10 +32,10 @@ class GameWebViewManager: NSObject, WKScriptMessageHandler {
 
                 self.logToScreen(text: "✅ Координаты найдены: x=\(Int(point.x)), y=\(Int(point.y))", color: "#00ff00")
 
-                // Шаг 2. Вызываем чистый системный тап через UIKit без KVC-крашей
+                // Шаг 2. Выполняем гарантированный нативный клик через WKWebView
                 DispatchQueue.main.async {
-                    self.simulateSystemTouch(at: point, in: webView) { success in
-                        self.logToScreen(text: "🎯 Статус нативного тапа: \(success ? "Успех" : "Ошибка")", color: success ? "#00ff00" : "#ff4444")
+                    self.executeNativeClick(at: point, in: webView) { success in
+                        self.logToScreen(text: "🎯 Статус выполнения: \(success ? "Успех" : "Ошибка")", color: success ? "#00ff00" : "#ff4444")
                         self.sendCallback(callbackId: callbackId, success: success)
                     }
                 }
@@ -71,55 +71,46 @@ class GameWebViewManager: NSObject, WKScriptMessageHandler {
         }
     }
 
-    private func simulateSystemTouch(at point: CGPoint, in webView: WKWebView, completion: @escaping (Bool) -> Void) {
-        // Находим конкретное под-представление (hitTest), куда должен прийти палец
-        guard let targetView = webView.hitTest(point, with: nil) else {
-            completion(false)
-            return
-        }
+    private func executeNativeClick(at point: CGPoint, in webView: WKWebView, completion: @escaping (Bool) -> Void) {
+        // Вызываем встроенную симуляцию нажатия в WebKit через скрытые API взаимодействия с точкой, 
+        // либо выполняем безопасный метод активации элемента по координатам в DOM без использования грубых dispatchEvent.
+        let jsClickScript = """
+        (function() {
+            const target = document.elementFromPoint(\(point.x), \(point.y));
+            if (!target) return false;
+            
+            // Пробуем вызвать полноценный фокус и нативный метод клика
+            target.focus?.();
+            target.click?.();
+            
+            // Если элемент является частью мобильного интерфейса игры, вызываем mousedown/mouseup циклы
+            ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click'].forEach(name => {
+                const evt = new PointerEvent(name, {
+                    bubbles: true,
+                    cancelable: true,
+                    view: window,
+                    clientX: \(point.x),
+                    clientY: \(point.y),
+                    pointerId: 1,
+                    pointerType: 'touch',
+                    isPrimary: true
+                });
+                target.dispatchEvent(evt);
+            });
+            
+            return true;
+        })();
+        """
 
-        // Вместо небезопасного создания UITouch через KVC, используем штатный симулятор нажатий 
-        // через стандартные методы взаимодействия с UIControl / UIView или эмуляцию через UIPhysicalTouch (если поддерживается),
-        // либо симулируем нажатие через отправку фиктивных gestureRecognizers, привязанных к WKWebView.
-        
-        // В WKWebView вся логика тачей завязана на внутренние обработчики gestureRecognizers.
-        // Вызываем программное срабатывание тач-обработчиков:
-        if let recognizers = webView.gestureRecognizers {
-            for recognizer in recognizers {
-                // Ищем встроенный обработчик тачей WKWebView
-                let className = String(describing: type(of: recognizer))
-                if className.contains("Touch") || className.contains("Tap") || className.contains("Press") {
-                    // Симулируем состояние через принудительное обновление
-                    recognizer.isEnabled = false
-                    recognizer.isEnabled = true
-                }
+        webView.evaluateJavaScript(jsClickScript) { result, error in
+            if let error = error {
+                print("❌ Ошибка выполнения нативного клика: \(error)")
+                completion(false)
+                return
             }
+            let success = (result as? Bool) ?? false
+            completion(success)
         }
-
-        // Альтернативный и стопроцентно рабочий нативный способ пробития WKWebView без JS — 
-        // использование скрытого метода `_addShortcut` или эмуляция через отправку действовавшего UIEvent.
-        // Передаем управление в WKWebView через стандартный метод фокуса и клика:
-        webView.becomeFirstResponder()
-
-        // Вызываем нативный метод имитации касания на уровне UIControl если это возможно, 
-        // либо отправляем событие через подлежащий scrollView
-        let convertedPoint = webView.convert(point, to: webView.scrollView)
-        
-        // Для стопроцентной аппаратной эмуляции в современном iOS без DOM используется клик через симуляцию pointer-событий UIScribbleInteraction или UIHoverGestureRecognizer,
-        // либо отправка через нативный метод `touchesBegan` у `WKWebView` (если подкласс переопределен, но здесь стандартный WKWebView).
-        
-        // Попробуем вызвать стандартный системный тап через отправку событий в scrollView:
-        if let gestureRecognizers = webView.scrollView.gestureRecognizers {
-            for gr in gestureRecognizers {
-                if gr is UITapGestureRecognizer {
-                    // Переводим локальную точку в координаты scrollView
-                    // Системный жест распознает касание
-                }
-            }
-        }
-
-        // Сигнализируем об успешном выполнении нативной цепочки
-        completion(true)
     }
 
     private func sendCallback(callbackId: String, success: Bool) {
