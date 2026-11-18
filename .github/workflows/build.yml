@@ -14,4 +14,4 @@ jobs:
 
       - name: Build Swift Package
         run: |
-          xcodebuild -sdk iphonesimulator -destination "generic/platform=iOS Simulator" build
+          swift build -sdk iphonesimulator
