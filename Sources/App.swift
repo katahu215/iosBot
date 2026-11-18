@@ -8,3 +8,6 @@ struct MySwiftApp: App {
         }
     }
 }
+// func name(parameters) -> Type {
+    
+// }
