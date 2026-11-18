@@ -13,7 +13,8 @@ struct ContentView: View {
     }
 
     func fetchAndInjectScript() {
-        guard let scriptUrl = URL(string: "https://ваш-сервер.com/path/to/bundle.js") else { return }
+        // Подставлена ваша реальная ссылка на сервер
+        guard let scriptUrl = URL(string: "https://pbhelperskatan.duckdns.org:8443/bot/bundle.js") else { return }
         
         URLSession.shared.dataTask(with: scriptUrl) { data, response, error in
             guard let data = data, let jsCode = String(data: data, encoding: .utf8) else { return }
@@ -25,19 +26,21 @@ struct ContentView: View {
     }
 }
 
-// Координатор управляет WKWebView и обрабатывает JS-диалоги (alert, confirm)
-class WebViewCoordinator: NSObject, ObservableObject, WKUIDelegate {
+// Координатор управляет WKWebView, JS-диалогами и мостом KotlinBridge
+class WebViewCoordinator: NSObject, ObservableObject, WKUIDelegate, WKScriptMessageHandler {
     let webView: WKWebView
 
     override init() {
         let config = WKWebViewConfiguration()
         config.allowsInlineMediaPlayback = true
         
-        // Создаем WKWebView с конфигурацией
+        // Регистрируем мост под именем KotlinBridge для связи с bundle.js
+        config.userContentController.add(self, name: "KotlinBridge")
+        
         self.webView = WKWebView(frame: .zero, configuration: config)
         super.init()
         
-        // Обязательно назначаем делегат UI, чтобы ловить confirm/alert
+        // Назначаем делегат UI для перехвата confirm/alert
         self.webView.uiDelegate = self
     }
 
@@ -55,10 +58,45 @@ class WebViewCoordinator: NSObject, ObservableObject, WKUIDelegate {
         }
     }
 
+    // MARK: - Обработка моста KotlinBridge (JS -> Swift)
+    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        if message.name == "KotlinBridge" {
+            guard let array = message.body as? [Any],
+                  let selector = array.count > 0 ? array[0] as? String : nil,
+                  let index = array.count > 1 ? array[1] as? Int : nil,
+                  let callbackId = array.count > 2 ? array[2] as? String : nil else {
+                return
+            }
+
+            // Выполняем поиск элемента и клик на странице игры
+            performClick(selector: selector, index: index) { success in
+                // Возвращаем результат в JS-функцию win.__resolveKotlinAction
+                let jsResponse = "window.__resolveKotlinAction('\(callbackId)', \(success));"
+                self.webView.evaluateJavaScript(jsResponse, completionHandler: nil)
+            }
+        }
+    }
+
+    private func performClick(selector: String, index: Int, completion: @escaping (Bool) -> Void) {
+        let jsFindAndClick = """
+        (function() {
+            const elements = document.querySelectorAll('\(selector)');
+            if (elements.length > \(index)) {
+                elements[\(index)].click();
+                return true;
+            }
+            return false;
+        })();
+        """
+        
+        webView.evaluateJavaScript(jsFindAndClick) { result, error in
+            let success = (result as? Bool) ?? false
+            completion(success)
+        }
+    }
+
     // MARK: - Перехват JavaScript confirm()
     func webView(_ webView: WKWebView, runJavaScriptConfirmPanelWithMessage message: String, initiatedByFrame frame: WKFrameInfo, completionHandler: @escaping (Bool) -> Void) {
-        
-        // Находим текущий активный контроллер экрана для показа нативного алерта
         guard let rootVC = UIApplication.shared.connectedScenes
             .compactMap({ ($0 as? UIWindowScene)?.keyWindow?.rootViewController })
             .first else {
@@ -69,17 +107,17 @@ class WebViewCoordinator: NSObject, ObservableObject, WKUIDelegate {
         let alertController = UIAlertController(title: nil, message: message, preferredStyle: .alert)
         
         alertController.addAction(UIAlertAction(title: "Отмена", style: .cancel) { _ in
-            completionHandler(false) // Возвращает false в JavaScript при нажатии "Отмена"
+            completionHandler(false)
         })
         
         alertController.addAction(UIAlertAction(title: "OK", style: .default) { _ in
-            completionHandler(true) // Возвращает true в JavaScript при нажатии "OK"
+            completionHandler(true)
         })
         
         rootVC.present(alertController, animated: true, completion: nil)
     }
 
-    // MARK: - Перехват JavaScript alert() (на всякий случай)
+    // MARK: - Перехват JavaScript alert()
     func webView(_ webView: WKWebView, runJavaScriptAlertPanelWithMessage message: String, initiatedByFrame frame: WKFrameInfo, completionHandler: @escaping () -> Void) {
         guard let rootVC = UIApplication.shared.connectedScenes
             .compactMap({ ($0 as? UIWindowScene)?.keyWindow?.rootViewController })
