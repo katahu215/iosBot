@@ -35,8 +35,10 @@ jobs:
       - name: Package into .ipa
         run: |
           mkdir -p Payload
+          # Копируем скомпилированное приложение в папку Payload для .ipa
           cp -r build/Build/Products/Release-iphoneos/MySwiftApp.app Payload/
           zip -r MySwiftApp.ipa Payload
+          rm -rf Payload
 
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
