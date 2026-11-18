@@ -1,3 +1,18 @@
+import SwiftUI
+import WebKit
+
+struct ContentView: View {
+    @State private var webViewCoordinator = WebViewCoordinator()
+
+    var body: some View {
+        BrowserView(coordinator: webViewCoordinator)
+            .edgesIgnoringSafeArea(.all)
+            .onAppear {
+                webViewCoordinator.loadGame()
+            }
+    }
+}
+
 class WebViewCoordinator: NSObject, ObservableObject, WKUIDelegate, WKNavigationDelegate {
     let webView: WKWebView
     var bridgeManager: GameWebViewManager?
@@ -80,7 +95,6 @@ class WebViewCoordinator: NSObject, ObservableObject, WKUIDelegate, WKNavigation
                 })();
                 """
                 
-                // Явное использование self.webView для устранения ошибки компилятора
                 self.webView.evaluateJavaScript(setupScript) { _, _ in
                     self.webView.evaluateJavaScript(jsCode, completionHandler: { _, error in
                         if let error = error {
@@ -122,4 +136,15 @@ class WebViewCoordinator: NSObject, ObservableObject, WKUIDelegate, WKNavigation
         alertController.addAction(UIAlertAction(title: "OK", style: .default) { _ in completionHandler() })
         rootVC.present(alertController, animated: true, completion: nil)
     }
+}
+
+struct BrowserView: UIViewRepresentable {
+    @ObservedObject var coordinator: WebViewCoordinator
+
+    func makeUIView(context: Context) -> WKWebView {
+        coordinator.loadGame()
+        return coordinator.webView
+    }
+
+    func updateUIView(_ uiView: WKWebView, context: Context) {}
 }
