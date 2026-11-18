@@ -60,13 +60,13 @@ class WebViewCoordinator: NSObject, ObservableObject, WKUIDelegate, WKNavigation
                         consoleDiv.style.bottom = '0';
                         consoleDiv.style.left = '0';
                         consoleDiv.style.width = '100%';
-                        consoleDiv.style.maxHeight = '120px';
+                        consoleDiv.style.maxHeight = '150px';
                         consoleDiv.style.overflowY = 'auto';
-                        consoleDiv.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+                        consoleDiv.style.backgroundColor = 'rgba(0, 0, 0, 0.85)';
                         consoleDiv.style.color = '#00ff00';
                         consoleDiv.style.fontSize = '10px';
                         consoleDiv.style.zIndex = '999999';
-                        consoleDiv.style.padding = '4px';
+                        consoleDiv.style.padding = '6px';
                         consoleDiv.style.pointerEvents = 'none';
                         document.body.appendChild(consoleDiv);
 
@@ -108,7 +108,6 @@ class WebViewCoordinator: NSObject, ObservableObject, WKUIDelegate, WKNavigation
         }.resume()
     }
 
-    // MARK: - Перехват JavaScript confirm()
     func webView(_ webView: WKWebView, runJavaScriptConfirmPanelWithMessage message: String, initiatedByFrame frame: WKFrameInfo, completionHandler: @escaping (Bool) -> Void) {
         guard let rootVC = UIApplication.shared.connectedScenes
             .compactMap({ ($0 as? UIWindowScene)?.keyWindow?.rootViewController })
@@ -123,7 +122,6 @@ class WebViewCoordinator: NSObject, ObservableObject, WKUIDelegate, WKNavigation
         rootVC.present(alertController, animated: true, completion: nil)
     }
 
-    // MARK: - Перехват JavaScript alert()
     func webView(_ webView: WKWebView, runJavaScriptAlertPanelWithMessage message: String, initiatedByFrame frame: WKFrameInfo, completionHandler: @escaping () -> Void) {
         guard let rootVC = UIApplication.shared.connectedScenes
             .compactMap({ ($0 as? UIWindowScene)?.keyWindow?.rootViewController })
