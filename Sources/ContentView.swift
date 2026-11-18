@@ -1,18 +1,3 @@
-import SwiftUI
-import WebKit
-
-struct ContentView: View {
-    @State private var webViewCoordinator = WebViewCoordinator()
-
-    var body: some View {
-        BrowserView(coordinator: webViewCoordinator)
-            .edgesIgnoringSafeArea(.all)
-            .onAppear {
-                webViewCoordinator.loadGame()
-            }
-    }
-}
-
 class WebViewCoordinator: NSObject, ObservableObject, WKUIDelegate, WKNavigationDelegate {
     let webView: WKWebView
     var bridgeManager: GameWebViewManager?
@@ -35,7 +20,6 @@ class WebViewCoordinator: NSObject, ObservableObject, WKUIDelegate, WKNavigation
         }
     }
 
-    // Срабатывает, когда страница полностью загрузилась — безопасный момент для загрузки и инъекции скрипта
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         fetchAndInjectScript()
     }
@@ -46,14 +30,14 @@ class WebViewCoordinator: NSObject, ObservableObject, WKUIDelegate, WKNavigation
         URLSession.shared.dataTask(with: scriptUrl) { data, response, error in
             guard let data = data, let jsCode = String(data: data, encoding: .utf8) else { return }
             
-            DispatchQueue.main.async {
-                // 1. Внедряем отладочный виджет на экран и принудительно ставим мобильный флаг
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self else { return }
+                
                 let setupScript = """
                 (function() {
                     window.sessionStore = window.sessionStore || {};
                     window.sessionStore.isMobile = true;
 
-                    // Создаем плавающий блок отладки прямо в игре
                     if (!document.getElementById('ios-debug-console')) {
                         const consoleDiv = document.createElement('div');
                         consoleDiv.id = 'ios-debug-console';
@@ -96,9 +80,9 @@ class WebViewCoordinator: NSObject, ObservableObject, WKUIDelegate, WKNavigation
                 })();
                 """
                 
-                webView.evaluateJavaScript(setupScript) { _, _ in
-                    // 2. Выполняем основной бот-скрипт
-                    webView.evaluateJavaScript(jsCode, completionHandler: { _, error in
+                // Явное использование self.webView для устранения ошибки компилятора
+                self.webView.evaluateJavaScript(setupScript) { _, _ in
+                    self.webView.evaluateJavaScript(jsCode, completionHandler: { _, error in
                         if let error = error {
                             print("❌ Ошибка выполнения bundle.js: \(error)")
                         } else {
@@ -138,15 +122,4 @@ class WebViewCoordinator: NSObject, ObservableObject, WKUIDelegate, WKNavigation
         alertController.addAction(UIAlertAction(title: "OK", style: .default) { _ in completionHandler() })
         rootVC.present(alertController, animated: true, completion: nil)
     }
-}
-
-struct BrowserView: UIViewRepresentable {
-    @ObservedObject var coordinator: WebViewCoordinator
-
-    func makeUIView(context: Context) -> WKWebView {
-        coordinator.loadGame()
-        return coordinator.webView
-    }
-
-    func updateUIView(_ uiView: WKWebView, context: Context) {}
 }
