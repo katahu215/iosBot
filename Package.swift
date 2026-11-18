@@ -15,7 +15,8 @@ let package = Package(
     targets: [
         .target(
             name: "MyAwesomeApp",
-            dependencies: []
+            dependencies: [],
+            path: "Sources/MyAwesomeApp"
         ),
     ]
 )

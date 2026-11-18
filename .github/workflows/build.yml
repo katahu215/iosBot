@@ -14,6 +14,7 @@ jobs:
 
       - name: Build Swift Package for iOS Simulator
         run: |
-          swift build \
-            --triple arm64-apple-ios-simulator \
-            -Xswiftc -sdk -Xswiftc $(xcrun --sdk iphonesimulator --show-sdk-path)
+          xcodebuild build \
+            -scheme MyAwesomeApp \
+            -sdk iphonesimulator \
+            -destination "platform=iOS Simulator,name=iPhone 16"
