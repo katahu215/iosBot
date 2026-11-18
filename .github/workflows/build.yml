@@ -15,7 +15,7 @@ jobs:
       - name: Build Project
         run: |
           xcodebuild build \
-            -project MyAwesomeApp.xcodeproj \
+            -project MyAwesomeApp/MyAwesomeApp.xcodeproj \
             -scheme MyAwesomeApp \
             -destination "generic/platform=iOS Simulator" \
             CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO
