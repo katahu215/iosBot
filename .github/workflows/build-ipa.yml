@@ -1,7 +1,7 @@
 name: Build IPA
 
 on:
-  workflow_dispatch: # Ключевой момент: разрешить ручной запуск
+  workflow_dispatch:
 
 jobs:
   build:
