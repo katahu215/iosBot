@@ -1,4 +1,4 @@
-name: Build iOS
+name: Build iOS with SPM
 
 on:
   push:
@@ -12,10 +12,6 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Build Project
+      - name: Build Swift Package
         run: |
-          xcodebuild build \
-            -project MyAwesomeApp.xcodeproj \
-            -scheme MyAwesomeApp \
-            -destination "generic/platform=iOS Simulator" \
-            CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO
+          xcodebuild -sdk iphonesimulator -destination "generic/platform=iOS Simulator" build
