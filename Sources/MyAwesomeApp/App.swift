@@ -8,6 +8,3 @@ struct MyAwesomeApp: App {
         }
     }
 }
-// func name(parameters) -> Type {
-    
-// }
