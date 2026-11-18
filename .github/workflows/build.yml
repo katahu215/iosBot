@@ -17,4 +17,4 @@ jobs:
           xcodebuild build \
             -scheme MyAwesomeApp \
             -sdk iphonesimulator \
-            -destination "platform=iOS Simulator,name=iPhone 16"
+            -destination "platform=iOS Simulator,name=iPhone 17"
