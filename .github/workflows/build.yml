@@ -12,6 +12,6 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Build Swift Package
+      - name: Build Swift Package for iOS Simulator
         run: |
-          swift build --sdk iphonesimulator
+          swift build -Xswiftc -sdk -Xswiftc $(xcrun --sdk iphonesimulator --show-sdk-path)
