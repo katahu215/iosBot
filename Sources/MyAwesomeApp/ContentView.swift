@@ -53,7 +53,6 @@ struct ContentView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Панель ввода адреса
             HStack(spacing: 8) {
                 TextField("URL", text: $inputURL)
                     .keyboardType(.URL)
@@ -77,7 +76,6 @@ struct ContentView: View {
             }
             .padding()
 
-            // Область WebView
             if let url = webViewStore.currentURL {
                 WebView(url: url, webViewStore: webViewStore)
                     .ignoresSafeArea(edges: .bottom)
@@ -85,7 +83,6 @@ struct ContentView: View {
 
             Divider()
 
-            // Нижняя панель навигации
             HStack {
                 Button(action: { webViewStore.goBack() }) {
                     Image(systemName: "chevron.left").font(.system(size: 20, weight: .semibold))
@@ -108,7 +105,7 @@ struct ContentView: View {
             .padding(.horizontal, 32)
             .padding(.vertical, 12)
         }
-        .onChange(of: webViewStore.urlString) { newString in
+        .onChange(of: webViewStore.urlString) { _, newString in
             inputURL = newString
         }
     }
