@@ -22,7 +22,6 @@ class GameWebViewManager: NSObject, WKScriptMessageHandler {
 
             logToScreen(text: "🌉 [Bridge IN] Запрос клика: '\(selector)' [индекс: \(index)]", color: "#00ffff")
 
-            // Шаг 1. Находим координаты элемента через JS
             findCoordinates(selector: selector, index: index) { [weak self] point in
                 guard let self = self, let point = point, let webView = self.webView else {
                     self?.logToScreen(text: "❌ Элемент не найден: \(selector)[\(index)]", color: "#ff4444")
@@ -32,7 +31,6 @@ class GameWebViewManager: NSObject, WKScriptMessageHandler {
 
                 self.logToScreen(text: "✅ Координаты найдены: x=\(Int(point.x)), y=\(Int(point.y))", color: "#00ff00")
 
-                // Шаг 2. Выполняем нативную активацию по координатам через WKWebView
                 DispatchQueue.main.async {
                     self.executeNativeClick(at: point, in: webView) { success in
                         self.logToScreen(text: "🎯 Статус выполнения: \(success ? "Успех" : "Ошибка")", color: success ? "#00ff00" : "#ff4444")
@@ -72,29 +70,24 @@ class GameWebViewManager: NSObject, WKScriptMessageHandler {
     }
 
     private func executeNativeClick(at point: CGPoint, in webView: WKWebView, completion: @escaping (Bool) -> Void) {
-        // Убедимся, что точка находится в пределах видимости вьюхи
         guard webView.bounds.contains(point) else {
             completion(false)
             return
         }
         
-        // Проверяем наличие UIKit вьюхи под точкой
         let hitView = webView.hitTest(point, with: nil)
         guard hitView != nil else {
             completion(false)
             return
         }
         
-        // Переводим фокус на WKWebView для активации цепочки ответов
         webView.becomeFirstResponder()
 
-        // Чистый нативный вызов без самодельных PointerEvent-эмуляций в JS
         let jsClickScript = """
         (function() {
             const target = document.elementFromPoint(\(point.x), \(point.y));
             if (!target) return false;
             
-            // Фокусируемся и вызываем стандартный метод активации
             if (typeof target.focus === 'function') {
                 target.focus();
             }
@@ -147,21 +140,6 @@ class GameWebViewManager: NSObject, WKScriptMessageHandler {
         DispatchQueue.main.async { [weak self] in
             self?.webView?.evaluateJavaScript(js, completionHandler: nil)
         }
-    }
-}
-
-import SwiftUI
-import WebKit
-
-struct ContentView: View {
-    @State private var webViewCoordinator = WebViewCoordinator()
-
-    var body: some View {
-        BrowserView(coordinator: webViewCoordinator)
-            .edgesIgnoringSafeArea(.all)
-            .onAppear {
-                webViewCoordinator.loadGame()
-            }
     }
 }
 
@@ -286,15 +264,4 @@ class WebViewCoordinator: NSObject, ObservableObject, WKUIDelegate, WKNavigation
         alertController.addAction(UIAlertAction(title: "OK", style: .default) { _ in completionHandler() })
         rootVC.present(alertController, animated: true, completion: nil)
     }
-}
-
-struct BrowserView: UIViewRepresentable {
-    @ObservedObject var coordinator: WebViewCoordinator
-
-    func makeUIView(context: Context) -> WKWebView {
-        coordinator.loadGame()
-        return coordinator.webView
-    }
-
-    func updateUIView(_ uiView: WKWebView, context: Context) {}
 }
