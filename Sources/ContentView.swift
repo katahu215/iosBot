@@ -25,7 +25,6 @@ struct ContentView: View {
     }
 }
 
-// Координатор управляет WKWebView, диалогами и подключает GameWebViewManager
 class WebViewCoordinator: NSObject, ObservableObject, WKUIDelegate {
     let webView: WKWebView
     var bridgeManager: GameWebViewManager?
@@ -37,10 +36,7 @@ class WebViewCoordinator: NSObject, ObservableObject, WKUIDelegate {
         self.webView = WKWebView(frame: .zero, configuration: config)
         super.init()
         
-        // Назначаем UI делегат для confirm/alert
         self.webView.uiDelegate = self
-        
-        // Инициализируем менеджер кликов и моста
         self.bridgeManager = GameWebViewManager(webView: self.webView)
     }
 
@@ -88,7 +84,6 @@ class WebViewCoordinator: NSObject, ObservableObject, WKUIDelegate {
     }
 }
 
-// Обертка WKWebView для SwiftUI
 struct BrowserView: UIViewRepresentable {
     @ObservedObject var coordinator: WebViewCoordinator
 

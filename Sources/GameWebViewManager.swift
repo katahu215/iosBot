@@ -7,17 +7,17 @@ class GameWebViewManager: NSObject, WKScriptMessageHandler {
         self.webView = webView
         super.init()
         
-        // Регистрируем мост KotlinBridge
-        webView.configuration.userContentController.add(self, name: "KotlinBridge")
+        // Регистрируем канал iosBridge для получения JSON-словарей от бота
+        webView.configuration.userContentController.add(self, name: "iosBridge")
     }
 
-    // MARK: - Обработка моста KotlinBridge (JS -> Swift)
+    // MARK: - Обработка моста iosBridge (JS -> Swift)
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
-        if message.name == "KotlinBridge" {
-            guard let array = message.body as? [Any],
-                  let selector = array.count > 0 ? array[0] as? String : nil,
-                  let index = array.count > 1 ? array[1] as? Int : nil,
-                  let callbackId = array.count > 2 ? array[2] as? String : nil else {
+        if message.name == "iosBridge" {
+            guard let dict = message.body as? [String: Any],
+                  let selector = dict["selector"] as? String,
+                  let index = dict["index"] as? Int,
+                  let callbackId = dict["callbackId"] as? String else {
                 return
             }
 
