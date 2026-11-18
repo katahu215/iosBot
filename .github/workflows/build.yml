@@ -25,7 +25,13 @@ jobs:
       - name: Package into .ipa
         run: |
           mkdir -p Payload
-          cp -r DerivedData/MyAwesomeApp.xcarchive/Products/Applications/*.app Payload/
+          find DerivedData/MyAwesomeApp.xcarchive -name "*.app" -exec cp -r {} Payload/ \;
+
+          if [ -z "$(ls -A Payload)" ]; then
+            echo "Error: .app bundle not found!"
+            exit 1
+          fi
+
           zip -r MyAwesomeApp-unsigned.ipa Payload
           rm -rf Payload
 
