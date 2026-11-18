@@ -7,3 +7,7 @@ struct ContentView: View {
             .padding()
     }
 }
+
+// func name(parameters) -> Type {
+    
+// }
