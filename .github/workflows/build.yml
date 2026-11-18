@@ -1,4 +1,4 @@
-name: Build iOS with SPM
+name: Build iOS IPA for Sideloady
 
 on:
   push:
@@ -12,16 +12,25 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Build Swift Package for iOS Simulator
+      - name: Build Archive for Real Device
         run: |
-          xcodebuild build \
+          xcodebuild archive \
             -scheme MyAwesomeApp \
-            -sdk iphonesimulator \
-            -destination "platform=iOS Simulator,name=iPhone 17" \
-            -derivedDataPath DerivedData
+            -destination "generic/platform=iOS" \
+            -archivePath DerivedData/MyAwesomeApp.xcarchive \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO
 
-      - name: Upload app artifact
+      - name: Package into .ipa
+        run: |
+          mkdir -p Payload
+          cp -r DerivedData/MyAwesomeApp.xcarchive/Products/Applications/*.app Payload/
+          zip -r MyAwesomeApp-unsigned.ipa Payload
+          rm -rf Payload
+
+      - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: MyAwesomeApp-Simulator
-          path: DerivedData/Build/Products/Debug-iphonesimulator/MyAwesomeApp.app
+          name: MyAwesomeApp-IPA
+          path: MyAwesomeApp-unsigned.ipa
