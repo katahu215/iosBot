@@ -12,47 +12,28 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Build Executable for iOS Device
+      - name: Build Archive for iOS
         run: |
-          swift build \
-            --triple arm64-apple-ios \
-            -Xswiftc -sdk -Xswiftc $(xcrun --sdk iphoneos --show-sdk-path) \
-            -c release
+          xcodebuild archive \
+            -scheme MyAwesomeApp \
+            -destination "generic/platform=iOS" \
+            -archivePath DerivedData/MyAwesomeApp.xcarchive \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO
 
       - name: Package into .ipa
         run: |
-          mkdir -p Payload/MyAwesomeApp.app
+          mkdir -p Payload
+          find DerivedData/MyAwesomeApp.xcarchive -name "*.app" -exec cp -r {} Payload/ \;
 
-          # Копируем скомпилированный бинарник Swift в бандл приложения
-          cp .build/arm64-apple-ios/release/MyAwesomeApp Payload/MyAwesomeApp.app/MyAwesomeApp
+          if [ -z "$(ls -A Payload)" ]; then
+            echo "Error: .app bundle not found!"
+            exit 1
+          fi
 
-          # Создаем корректный Info.plist
-          cat << 'EOF' > Payload/MyAwesomeApp.app/Info.plist
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-              <key>CFBundleIdentifier</key>
-              <string>com.example.MyAwesomeApp</string>
-              <key>CFBundleName</key>
-              <string>MyAwesomeApp</string>
-              <key>CFBundlePackageType</key>
-              <string>APPL</string>
-              <key>CFBundleShortVersionString</key>
-              <string>1.0</string>
-              <key>CFBundleVersion</key>
-              <string>1</string>
-              <key>LSRequiresIPhoneOS</key>
-              <true/>
-              <key>UILaunchScreen</key>
-              <dict/>
-          </dict>
-          </plist>
-          EOF
-
-          # Упаковываем в .ipa
           zip -r MyAwesomeApp-unsigned.ipa Payload
-          rm -rf Payload
+          rm -rf Payload DerivedData
 
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
