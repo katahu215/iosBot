@@ -17,4 +17,11 @@ jobs:
           xcodebuild build \
             -scheme MyAwesomeApp \
             -sdk iphonesimulator \
-            -destination "platform=iOS Simulator,name=iPhone 17"
+            -destination "platform=iOS Simulator,name=iPhone 17" \
+            -derivedDataPath DerivedData
+
+      - name: Upload app artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MyAwesomeApp-Simulator
+          path: DerivedData/Build/Products/Debug-iphonesimulator/MyAwesomeApp.app
