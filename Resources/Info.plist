@@ -8,6 +8,8 @@
     <string>Лига 17</string>
     <key>CFBundleIdentifier</key>
     <string>com.example.myswiftapp</string>
+    <key>CFBundleIconName</key>
+    <string>AppIcon</string>
     <key>CFBundleShortVersionString</key>
     <string>1.0.0</string>
     <key>CFBundleVersion</key>
