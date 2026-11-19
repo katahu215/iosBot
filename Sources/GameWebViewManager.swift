@@ -24,7 +24,15 @@ class WebViewCoordinator: NSObject, ObservableObject, WKUIDelegate, WKNavigation
         self.webView.uiDelegate = self
         self.webView.navigationDelegate = self
 
+        setKeepScreenOn(true)
         setupNotifications()
+    }
+
+    /// Запрещает или разрешает автоматическое гашение экрана при работе приложения
+    private func setKeepScreenOn(_ enabled: Bool) {
+        DispatchQueue.main.async {
+            UIApplication.shared.isIdleTimerDisabled = enabled
+        }
     }
 
     /// Запрашивает права на уведомления и назначает делегат для показа баннеров внутри открытого приложения
@@ -42,6 +50,7 @@ class WebViewCoordinator: NSObject, ObservableObject, WKUIDelegate, WKNavigation
 
     /// Загружает страницу игры, если она еще не была загружена
     func loadGame() {
+        setKeepScreenOn(true)
         if webView.url == nil, let url = URL(string: "https://league17.ru/game/") {
             webView.load(URLRequest(url: url))
         }
@@ -62,7 +71,9 @@ class WebViewCoordinator: NSObject, ObservableObject, WKUIDelegate, WKNavigation
     /// Создает и мгновенно планирует системное уведомление iOS
     private func triggerLocalNotification(message: String) {
         let content = UNMutableNotificationContent()
-        content.title = "LeagueHelper"
+        content.title = (Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String)
+            ?? (Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String)
+            ?? "Лига 17"
         content.body = message
         content.sound = .default
 
@@ -120,45 +131,46 @@ class WebViewCoordinator: NSObject, ObservableObject, WKUIDelegate, WKNavigation
                         }
                     };
 
-                    if (!document.getElementById('ios-debug-console')) {
-                        const consoleDiv = document.createElement('div');
-                        consoleDiv.id = 'ios-debug-console';
-                        consoleDiv.style.position = 'fixed';
-                        consoleDiv.style.bottom = '0';
-                        consoleDiv.style.left = '0';
-                        consoleDiv.style.width = '100%';
-                        consoleDiv.style.maxHeight = '150px';
-                        consoleDiv.style.overflowY = 'auto';
-                        consoleDiv.style.backgroundColor = 'rgba(0, 0, 0, 0.85)';
-                        consoleDiv.style.color = '#00ff00';
-                        consoleDiv.style.fontSize = '10px';
-                        consoleDiv.style.zIndex = '999999';
-                        consoleDiv.style.padding = '6px';
-                        consoleDiv.style.pointerEvents = 'none';
-                        document.body.appendChild(consoleDiv);
-
-                        const logToScreen = (msg, color = '#00ff00') => {
-                            const p = document.createElement('div');
-                            p.style.color = color;
-                            p.textContent = msg;
-                            consoleDiv.appendChild(p);
-                            consoleDiv.scrollTop = consoleDiv.scrollHeight;
-                        };
-
-                        window.addEventListener('error', (e) => logToScreen('ERR: ' + e.message, '#ff4444'));
-
-                        const originalLog = console.log;
-                        console.log = (...args) => {
-                            originalLog(...args);
-                            logToScreen(args.join(' '));
-                        };
-
-                        const originalError = console.error;
-                        console.error = (...args) => {
-                            originalError(...args);
-                            logToScreen('ERR: ' + args.join(' '), '#ff4444');
-                        };
-                    }
+                    // Экранная консоль временно отключена:
+                    // if (!document.getElementById('ios-debug-console')) {
+                    //     const consoleDiv = document.createElement('div');
+                    //     consoleDiv.id = 'ios-debug-console';
+                    //     consoleDiv.style.position = 'fixed';
+                    //     consoleDiv.style.bottom = '0';
+                    //     consoleDiv.style.left = '0';
+                    //     consoleDiv.style.width = '100%';
+                    //     consoleDiv.style.maxHeight = '150px';
+                    //     consoleDiv.style.overflowY = 'auto';
+                    //     consoleDiv.style.backgroundColor = 'rgba(0, 0, 0, 0.85)';
+                    //     consoleDiv.style.color = '#00ff00';
+                    //     consoleDiv.style.fontSize = '10px';
+                    //     consoleDiv.style.zIndex = '999999';
+                    //     consoleDiv.style.padding = '6px';
+                    //     consoleDiv.style.pointerEvents = 'none';
+                    //     document.body.appendChild(consoleDiv);
+                    //
+                    //     const logToScreen = (msg, color = '#00ff00') => {
+                    //         const p = document.createElement('div');
+                    //         p.style.color = color;
+                    //         p.textContent = msg;
+                    //         consoleDiv.appendChild(p);
+                    //         consoleDiv.scrollTop = consoleDiv.scrollHeight;
+                    //     };
+                    //
+                    //     window.addEventListener('error', (e) => logToScreen('ERR: ' + e.message, '#ff4444'));
+                    //
+                    //     const originalLog = console.log;
+                    //     console.log = (...args) => {
+                    //         originalLog(...args);
+                    //         logToScreen(args.join(' '));
+                    //     };
+                    //
+                    //     const originalError = console.error;
+                    //     console.error = (...args) => {
+                    //         originalError(...args);
+                    //         logToScreen('ERR: ' + args.join(' '), '#ff4444');
+                    //     };
+                    // }
                 })();
                 """
 
