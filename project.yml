@@ -8,7 +8,7 @@ targets:
   MySwiftApp:
     type: application
     platform: iOS
-    sources:
+   sources:
       - Sources
       - Resources/Info.plist
       - Resources/Assets.xcassets
