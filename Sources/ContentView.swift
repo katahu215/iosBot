@@ -14,7 +14,6 @@ struct BrowserView: UIViewRepresentable {
     @ObservedObject var coordinator: WebViewCoordinator
 
     func makeUIView(context: Context) -> WKWebView {
-        coordinator.loadGame()
         return coordinator.webView
     }
 
