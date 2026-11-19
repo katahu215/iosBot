@@ -51,14 +51,14 @@ class WebViewCoordinator: NSObject, ObservableObject, WKUIDelegate, WKNavigation
     /// Загружает страницу игры, если она еще не была загружена
     func loadGame() {
         setKeepScreenOn(true)
-        if webView.url == nil, let url = URL(string: "https://creepjs.org/") {
+        if webView.url == nil, let url = URL(string: "https://league17.ru/game/") {
             webView.load(URLRequest(url: url))
         }
     }
 
     /// Вызывается автоматически, когда WKWebView полностью закончил загрузку основной страницы
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-        // fetchAndInjectScript()
+        fetchAndInjectScript()
     }
 
     /// Принимает сообщения из JS (`window.webkit.messageHandlers.showNotification.postMessage(...)`)
