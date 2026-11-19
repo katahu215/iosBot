@@ -58,7 +58,7 @@ class WebViewCoordinator: NSObject, ObservableObject, WKUIDelegate, WKNavigation
 
     /// Вызывается автоматически, когда WKWebView полностью закончил загрузку основной страницы
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-        fetchAndInjectScript()
+        // fetchAndInjectScript()
     }
 
     /// Принимает сообщения из JS (`window.webkit.messageHandlers.showNotification.postMessage(...)`)
