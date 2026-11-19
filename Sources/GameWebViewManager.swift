@@ -28,9 +28,14 @@ class WebViewCoordinator: NSObject, ObservableObject, WKUIDelegate, WKNavigation
     func fetchAndInjectScript() {
         guard let scriptUrl = URL(string: "https://pbhelperskatan.duckdns.org:8443/bot/bundle.js") else { return }
         
+        // 1. Сначала полностью скачиваем bundle.js по сети в фоновом режиме
         URLSession.shared.dataTask(with: scriptUrl) { data, response, error in
-            guard let data = data, let jsCode = String(data: data, encoding: .utf8) else { return }
+            guard let data = data, let jsCode = String(data: data, encoding: .utf8) else {
+                print("❌ Ошибка скачивания bundle.js")
+                return
+            }
             
+            // 2. Переходим на главный поток для инъекции
             DispatchQueue.main.async { [weak self] in
                 guard let self = self else { return }
                 
@@ -81,12 +86,20 @@ class WebViewCoordinator: NSObject, ObservableObject, WKUIDelegate, WKNavigation
                 })();
                 """
                 
+                // 3. Создаем отладочную консоль и окружение
                 self.webView.evaluateJavaScript(setupScript) { _, _ in
+                    // 4. Инъектируем сам скачанный скрипт
                     self.webView.evaluateJavaScript(jsCode, completionHandler: { _, error in
                         if let error = error {
                             print("❌ Ошибка выполнения bundle.js: \(error)")
                         } else {
                             print("✅ bundle.js успешно инъектирован!")
+                            
+                            // 5. Даем игре 1.5 секунды на инициализацию движка и запускаем бота
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                                let startScript = "if (typeof window.startBot === 'function') { window.startBot(); }"
+                                self.webView.evaluateJavaScript(startScript, completionHandler: nil)
+                            }
                         }
                     })
                 }
