@@ -10,20 +10,19 @@ class WebViewCoordinator: NSObject, ObservableObject, WKUIDelegate, WKNavigation
         let config = WKWebViewConfiguration()
         config.allowsInlineMediaPlayback = true
 
-        // 1. Регистрируем мост для JS -> Swift до создания WKWebView
+        // 1. Создаем WKUserContentController и привязываем к config до создания WKWebView
         let contentController = WKUserContentController()
-        self.webView = WKWebView(frame: .zero, configuration: config)
-        super.init()
-
-        contentController.add(self, name: "showNotification")
         config.userContentController = contentController
 
-        // Пересоздаем webView с настроенным config, так как WKWebViewConfiguration копируется при init
-        let configuredWebView = WKWebView(frame: .zero, configuration: config)
-        configuredWebView.uiDelegate = self
-        configuredWebView.navigationDelegate = self
-        // Заменяем ссылку через KVC либо храним configuredWebView сразу (см. вариант ниже без лишней аллокации)
-        self.webView = configuredWebView
+        // 2. Создаем WKWebView один раз и инициализируем stored property до super.init()
+        let view = WKWebView(frame: .zero, configuration: config)
+        self.webView = view
+        super.init()
+
+        // 3. Регистрируем обработчик сообщений и делегаты после super.init()
+        contentController.add(self, name: "showNotification")
+        self.webView.uiDelegate = self
+        self.webView.navigationDelegate = self
 
         setupNotifications()
     }
@@ -67,7 +66,6 @@ class WebViewCoordinator: NSObject, ObservableObject, WKUIDelegate, WKNavigation
         content.body = message
         content.sound = .default
 
-        // Небольшая задержка (0.2 сек) нужна для корректной постановки локального триггера в UNUserNotificationCenter
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 0.2, repeats: false)
         let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: trigger)
 
