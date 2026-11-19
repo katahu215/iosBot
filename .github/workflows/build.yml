@@ -43,5 +43,5 @@ jobs:
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: MySwiftApp-ipa
-          path: MySwiftApp.ipa
+          name: League17-ipa
+          path: League17.ipa
