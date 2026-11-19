@@ -29,7 +29,7 @@ jobs:
             -derivedDataPath build \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_IDENTITY="" \
             build
 
       - name: Package into .ipa
@@ -37,7 +37,7 @@ jobs:
           mkdir -p Payload
           # Копируем скомпилированное приложение в папку Payload для .ipa
           cp -r build/Build/Products/Release-iphoneos/MySwiftApp.app Payload/
-          zip -r MySwiftApp.ipa Payload
+          zip -r League17.ipa Payload
           rm -rf Payload
 
       - name: Upload IPA Artifact
