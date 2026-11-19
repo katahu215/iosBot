@@ -3,35 +3,16 @@ import UIKit
 
 class WebViewCoordinator: NSObject, ObservableObject, WKUIDelegate, WKNavigationDelegate {
     let webView: WKWebView
-    private var webViewConfig: WKWebViewConfiguration
-    
-    // Кэш для скачанного скрипта
-    private var preloadedBundleCode: String?
-    private var isGameLoaded = false
 
     override init() {
-        self.webViewConfig = WKWebViewConfiguration()
-        webViewConfig.allowsInlineMediaPlayback = true
+        let config = WKWebViewConfiguration()
+        config.allowsInlineMediaPlayback = true
         
-        self.webView = WKWebView(frame: .zero, configuration: webViewConfig)
+        self.webView = WKWebView(frame: .zero, configuration: config)
         super.init()
         
         self.webView.uiDelegate = self
         self.webView.navigationDelegate = self
-        
-        // 🔒 Запрещаем экрану уходить в сон
-        UIApplication.shared.isIdleTimerDisabled = true
-        
-        // 1. Сразу в фоне начинаем скачивать bundle.js ДО старта загрузки страницы
-        preloadedBundleScript()
-        
-        // 2. Начинаем загрузку сайта
-        loadGame()
-    }
-    
-    deinit {
-        // Возвращаем дефолтное поведение экрана при выгрузке
-        UIApplication.shared.isIdleTimerDisabled = false
     }
 
     func loadGame() {
@@ -40,84 +21,92 @@ class WebViewCoordinator: NSObject, ObservableObject, WKUIDelegate, WKNavigation
         }
     }
 
-    private func preloadedBundleScript() {
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        fetchAndInjectScript()
+    }
+
+    func fetchAndInjectScript() {
         guard let scriptUrl = URL(string: "https://pbhelperskatan.duckdns.org:8443/bot/bundle.js") else { return }
         
-        URLSession.shared.dataTask(with: scriptUrl) { [weak self] data, _, error in
-            guard let self = self, let data = data, let jsCode = String(data: data, encoding: .utf8) else {
-                print("❌ Ошибка предварительного скачивания bundle.js")
+        // 1. Сначала полностью скачиваем bundle.js по сети в фоновом режиме
+        URLSession.shared.dataTask(with: scriptUrl) { data, response, error in
+            guard let data = data, let jsCode = String(data: data, encoding: .utf8) else {
+                print("❌ Ошибка скачивания bundle.js")
                 return
             }
             
-            DispatchQueue.main.async {
-                self.preloadedBundleCode = jsCode
-                print("📦 bundle.js успешно скачан в фоновом режиме заранее!")
+            // 2. Переходим на главный поток для инъекции
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self else { return }
                 
-                // Если сайт уже открылся, а скрипт только что докачался — инъектируем его
-                if self.isGameLoaded {
-                    self.injectDownloadedScript(jsCode)
+                let setupScript = """
+                (function() {
+                    window.sessionStore = window.sessionStore || {};
+                    window.sessionStore.isMobile = true;
+
+                    if (!document.getElementById('ios-debug-console')) {
+                        const consoleDiv = document.createElement('div');
+                        consoleDiv.id = 'ios-debug-console';
+                        consoleDiv.style.position = 'fixed';
+                        consoleDiv.style.bottom = '0';
+                        consoleDiv.style.left = '0';
+                        consoleDiv.style.width = '100%';
+                        consoleDiv.style.maxHeight = '150px';
+                        consoleDiv.style.overflowY = 'auto';
+                        consoleDiv.style.backgroundColor = 'rgba(0, 0, 0, 0.85)';
+                        consoleDiv.style.color = '#00ff00';
+                        consoleDiv.style.fontSize = '10px';
+                        consoleDiv.style.zIndex = '999999';
+                        consoleDiv.style.padding = '6px';
+                        consoleDiv.style.pointerEvents = 'none';
+                        document.body.appendChild(consoleDiv);
+
+                        const logToScreen = (msg, color = '#00ff00') => {
+                            const p = document.createElement('div');
+                            p.style.color = color;
+                            p.textContent = msg;
+                            consoleDiv.appendChild(p);
+                            consoleDiv.scrollTop = consoleDiv.scrollHeight;
+                        };
+
+                        window.addEventListener('error', (e) => logToScreen('ERR: ' + e.message, '#ff4444'));
+                        
+                        const originalLog = console.log;
+                        console.log = (...args) => {
+                            originalLog(...args);
+                            logToScreen(args.join(' '));
+                        };
+                        
+                        const originalError = console.error;
+                        console.error = (...args) => {
+                            originalError(...args);
+                            logToScreen('ERR: ' + args.join(' '), '#ff4444');
+                        };
+                    }
+                })();
+                """
+                
+                // 3. Создаем отладочную консоль и окружение
+                self.webView.evaluateJavaScript(setupScript) { _, _ in
+                    // 4. Инъектируем сам скачанный скрипт
+                    self.webView.evaluateJavaScript(jsCode, completionHandler: { _, error in
+                        if let error = error {
+                            print("❌ Ошибка выполнения bundle.js: \(error)")
+                        } else {
+                            print("✅ bundle.js успешно инъектирован!")
+                            
+                            // 5. Даем игре 1.5 секунды на инициализацию движка и запускаем бота
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                                let startScript = "if (typeof window.startBot === 'function') { window.startBot(); }"
+                                self.webView.evaluateJavaScript(startScript, completionHandler: nil)
+                            }
+                        }
+                    })
                 }
             }
         }.resume()
     }
 
-    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-        isGameLoaded = true
-        
-        // Если бандл уже скачался к моменту окончания загрузки страницы — выполняем
-        if let bundleCode = preloadedBundleCode {
-            injectDownloadedScript(bundleCode)
-        } else {
-            print("⏳ Страница загрузилась быстрее, чем скачался bundle.js, ждем загрузку сети...")
-        }
-    }
-
-    private func injectDownloadedScript(_ jsCode: String) {
-        let setupScript = """
-        (function() {
-            window.sessionStore = window.sessionStore || {};
-            window.sessionStore.isMobile = true;
-
-            if (!document.getElementById('ios-debug-console')) {
-                const consoleDiv = document.createElement('div');
-                consoleDiv.id = 'ios-debug-console';
-                consoleDiv.style.position = 'fixed';
-                consoleDiv.style.bottom = '0';
-                consoleDiv.style.left = '0';
-                consoleDiv.style.width = '100%';
-                consoleDiv.style.maxHeight = '150px';
-                consoleDiv.style.overflowY = 'auto';
-                consoleDiv.style.backgroundColor = 'rgba(0, 0, 0, 0.85)';
-                console.log = (...args) => {
-                    const originalLog = console.log;
-                    originalLog(...args);
-                };
-            }
-        })();
-        """
-        
-        // Добавлен явный захват [self] и вызовы через self.webView
-        self.webView.evaluateJavaScript(setupScript) { [weak self] _, _ in
-            guard let self = self else { return }
-            self.webView.evaluateJavaScript(jsCode, completionHandler: { [weak self] _, error in
-                guard let self = self else { return }
-                if let error = error {
-                    print("❌ Ошибка выполнения bundle.js: \(error)")
-                } else {
-                    print("✅ bundle.js успешно инъектирован!")
-                    
-                    // Даем игре 1.5 секунды на инициализацию движка и запускаем бота
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
-                        guard let self = self else { return }
-                        let startScript = "if (typeof window.startBot === 'function') { window.startBot(); }"
-                        self.webView.evaluateJavaScript(startScript, completionHandler: nil)
-                    }
-                }
-            })
-        }
-    }
-
-    // Обработка JavaScript Alert/Confirm
     func webView(_ webView: WKWebView, runJavaScriptConfirmPanelWithMessage message: String, initiatedByFrame frame: WKFrameInfo, completionHandler: @escaping (Bool) -> Void) {
         guard let rootVC = UIApplication.shared.connectedScenes
             .compactMap({ ($0 as? UIWindowScene)?.keyWindow?.rootViewController })
