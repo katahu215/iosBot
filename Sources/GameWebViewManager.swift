@@ -88,49 +88,29 @@ class WebViewCoordinator: NSObject, ObservableObject, WKUIDelegate, WKNavigation
                 consoleDiv.style.maxHeight = '150px';
                 consoleDiv.style.overflowY = 'auto';
                 consoleDiv.style.backgroundColor = 'rgba(0, 0, 0, 0.85)';
-                consoleDiv.style.color = '#00ff00';
-                consoleDiv.style.fontSize = '10px';
-                consoleDiv.style.zIndex = '999999';
-                consoleDiv.style.padding = '6px';
-                consoleDiv.style.pointerEvents = 'none';
-                document.body.appendChild(consoleDiv);
-
-                const logToScreen = (msg, color = '#00ff00') => {
-                    const p = document.createElement('div');
-                    p.style.color = color;
-                    p.textContent = msg;
-                    consoleDiv.appendChild(p);
-                    consoleDiv.scrollTop = consoleDiv.scrollHeight;
-                };
-
-                window.addEventListener('error', (e) => logToScreen('ERR: ' + e.message, '#ff4444'));
-                
-                const originalLog = console.log;
                 console.log = (...args) => {
+                    const originalLog = console.log;
                     originalLog(...args);
-                    logToScreen(args.join(' '));
-                };
-                
-                const originalError = console.error;
-                console.error = (...args) => {
-                    originalError(...args);
-                    logToScreen('ERR: ' + args.join(' '), '#ff4444');
                 };
             }
         })();
         """
         
-        webView.evaluateJavaScript(setupScript) { _, _ in
-            webView.evaluateJavaScript(jsCode, completionHandler: { _, error in
+        // Добавлен явный захват [self] и вызовы через self.webView
+        self.webView.evaluateJavaScript(setupScript) { [weak self] _, _ in
+            guard let self = self else { return }
+            self.webView.evaluateJavaScript(jsCode, completionHandler: { [weak self] _, error in
+                guard let self = self else { return }
                 if let error = error {
                     print("❌ Ошибка выполнения bundle.js: \(error)")
                 } else {
                     print("✅ bundle.js успешно инъектирован!")
                     
                     // Даем игре 1.5 секунды на инициализацию движка и запускаем бота
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
+                        guard let self = self else { return }
                         let startScript = "if (typeof window.startBot === 'function') { window.startBot(); }"
-                        webView.evaluateJavaScript(startScript, completionHandler: nil)
+                        self.webView.evaluateJavaScript(startScript, completionHandler: nil)
                     }
                 }
             })
